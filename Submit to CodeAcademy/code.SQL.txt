@@ -1,0 +1,9 @@
+-- how many segments in all data?  --
+SELECT COUNT (DISTINCT segment)
+FROM subscriptions;
+
+-- view first 100 rows --
+SELECT *
+FROM subsriptions
+LIMIT 100;
+
