@@ -1,0 +1,74 @@
+-- how many segments in all data?  --
+SELECT COUNT (DISTINCT segment)
+FROM subscriptions;
+
+-- view first 100 rows --
+SELECT *
+FROM subscriptions
+LIMIT 100;
+
+-- date range of all data --
+SELECT Min (subscription_start), Max (subscription_start), Min (subscription_end), Max (subscription_end)
+FROM subscriptions;
+
+
+
+-- MAIN QUERY --
+
+-- create months table --
+WITH months AS
+(SELECT
+  '2017-01-01' as first_day,
+  '2017-01-31' as last_day
+UNION
+SELECT
+  '2017-02-01' as first_day,
+  '2017-02-28' as last_day
+UNION
+SELECT
+ '2017-03-01' as first_day,
+ '2017-03-31' as last_day),
+
+-- create cross_join table --
+cross_join AS
+(SELECT * FROM subscriptions CROSS JOIN months),
+
+-- create status table --
+status AS
+(SELECT 
+id,
+first_day AS month,
+CASE
+		WHEN (subscription_start < first_day) AND (subscription_end > first_day OR subscription_end IS NULL) AND (segment = 87) THEN 1
+		ELSE 0 
+END AS is_active_87,
+CASE
+		WHEN (subscription_start < first_day) AND (subscription_end > first_day OR subscription_end IS NULL) AND (segment=30) THEN 1
+		ELSE 0 
+END AS is_active_30,
+CASE
+    WHEN (subscription_end BETWEEN first_day AND last_day) AND (segment = 87) THEN 1
+    ELSE 0
+END AS is_cancelled_87,
+CASE
+    WHEN (subscription_end BETWEEN first_day AND last_day) AND (segment = 30) THEN 1
+    ELSE 0
+END AS is_cancelled_30 
+FROM cross_join),
+
+-- create status_aggregate table --
+status_aggregate AS
+(SELECT month,
+SUM (is_active_87) AS sum_active_87,
+SUM (is_active_30) AS sum_active_30,
+SUM (is_cancelled_87) AS sum_cancelled_87,
+SUM (is_cancelled_30) AS sum_cancelled_30
+FROM status
+GROUP BY month)
+
+-- churn calculation --
+SELECT 
+month,
+ROUND (1.0 * sum_cancelled_87 / sum_active_87,5) as churn_87,
+ROUND (1.0 * sum_cancelled_30 / sum_active_30,5) AS churn_30
+FROM status_aggregate;
